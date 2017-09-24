@@ -8,9 +8,9 @@ enum  MtachNodeFlag {
 };
 
 struct MatchNode {
-    std::unordered_map<int, MatchNode*>   Dict;
-    uint16_t                              wAlphaUTF16LE;
-    uint16_t                              wFlags;
+    std::unordered_map<uint16_t, MatchNode*>   Dict;
+    uint16_t                                   wAlphaUTF16LE;
+    uint16_t                                   wFlags;
 };
 
 static MatchNode  s_MatchTreeRoot;
@@ -41,8 +41,6 @@ int  dwf::Destory(){
 #define LOG_ERR(...)
 
 //////////////////////////////////////////////////////////////////////////
-
-// Convert Unicode big endian to Unicode little endian
 unsigned ucs2_be_to_le(unsigned short *ucs2bige, unsigned int size)
 {
     if (!ucs2bige) {
@@ -59,32 +57,22 @@ unsigned ucs2_be_to_le(unsigned short *ucs2bige, unsigned int size)
     }    
     return size - length;
 }
-
-// Convert Ucs-2 to Utf-8
 unsigned int ucs2_to_utf8(unsigned short *ucs2, unsigned int ucs2_size, 
-        unsigned char *utf8, unsigned int utf8_size){
+                          unsigned char *utf8, unsigned int utf8_size){
     unsigned int length = 0;    
     if (!ucs2) {
         return 0;
     }    
     unsigned short *inbuf = ucs2;
     unsigned char *outbuf = utf8;
-    
     if (*inbuf == 0xFFFE) {
         ucs2_be_to_le(inbuf, ucs2_size);
+        ++inbuf;
     }
-    
     if (!utf8) {
         unsigned int insize = ucs2_size;
-        
         while (*inbuf && insize) {
             insize--;
-            
-/*            if (*inbuf == 0xFEFF) {
-                inbuf++;
-                continue;
-            }*/
-            
             if (0x0080 > *inbuf) {
                 length++;
             } else if (0x0800 > *inbuf) {
@@ -92,22 +80,18 @@ unsigned int ucs2_to_utf8(unsigned short *ucs2, unsigned int ucs2_size,
             } else {
                 length += 3;
             }
-            
             inbuf++;
         }
         return length;
         
     } else {        
         unsigned int insize = ucs2_size;
-        
         while (*inbuf && insize && length < utf8_size) {            
             insize--;
-            
             if (*inbuf == 0xFFFE) {
                 inbuf++;
                 continue;
             }
-            
             if (0x0080 > *inbuf) {
                 /* 1 byte UTF-8 Character.*/
                 *outbuf++ = (unsigned char)(*inbuf);
@@ -117,7 +101,6 @@ unsigned int ucs2_to_utf8(unsigned short *ucs2, unsigned int ucs2_size,
                 *outbuf++ = 0xc0 | ((unsigned char)(*inbuf >> 6));
                 *outbuf++ = 0x80 | ((unsigned char)(*inbuf & 0x3F));
                 length += 2;
-
             } else {
                 /* 3 bytes UTF-8 Character .*/
                 *outbuf++ = 0xE0 | ((unsigned char)(*inbuf >> 12));
@@ -125,25 +108,20 @@ unsigned int ucs2_to_utf8(unsigned short *ucs2, unsigned int ucs2_size,
                 *outbuf++ = 0x80 | ((unsigned char)(*inbuf & 0x3F));
                 length += 3; 
             }
-            
             inbuf++;
         }
-        
         return length;
     }
 }
-
-// Convert Utf-8 to Ucs-2 
 unsigned int utf8_to_ucs2(unsigned char *utf8, unsigned int utf8_size, 
-        unsigned short *ucs2, unsigned int ucs2_size)
+                          unsigned short *ucs2, unsigned int ucs2_size)
 {
     int length = 0;
     unsigned int insize = utf8_size;
     unsigned char *inbuf = utf8;
-
-    if(!utf8)
+    if(!utf8){
         return 0;
-
+    }
     if(!ucs2) {
         while(*inbuf && insize) {
             unsigned char c = *inbuf;
@@ -163,11 +141,9 @@ unsigned int utf8_to_ucs2(unsigned char *utf8, unsigned int utf8_size,
             }
         }
         return length;
-
     } else {
         unsigned short *outbuf = ucs2;
         unsigned int outsize = ucs2_size;
-
         while(*inbuf && insize && length < (int)outsize) {
             unsigned char c = *inbuf;
             if((c & 0x80) == 0) {
@@ -177,20 +153,16 @@ unsigned int utf8_to_ucs2(unsigned char *utf8, unsigned int utf8_size,
                 insize--;
             } else if((c & 0xE0) == 0xC0) {
                 unsigned short val;
-
                 val = (c & 0x3F) << 6;
                 inbuf++;
                 c = *inbuf;
                 val |= (c & 0x3F);
                 inbuf++;
-
                 length++;
                 insize -= 2;
-
                 *outbuf++ = val;
             } else if((c & 0xF0) == 0xE0) {
                 unsigned short val;
-
                 val = (c & 0x1F) << 12;
                 inbuf++;
                 c = *inbuf;
@@ -202,7 +174,6 @@ unsigned int utf8_to_ucs2(unsigned char *utf8, unsigned int utf8_size,
 
                 insize -= 3;
                 length++;
-
                 *outbuf++ = val;
             }
             else {
